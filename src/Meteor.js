@@ -91,7 +91,7 @@ const Meteor = {
       SocketConstructor: WebSocket,
       ...options,
     });
-    
+
     try {
       const NetInfo = require("@react-native-community/netinfo").default;
       NetInfo.addEventListener(({type, isConnected, isInternetReachable, isWifiEnabled}) => {
@@ -214,6 +214,15 @@ const Meteor = {
         const sub = Data.subscriptions[i];
         if (sub.subIdRemember == message.id) {
           console.warn('No subscription existing for', sub.name);
+          if (message.error) {
+            sub.error = message.error;
+            sub.ready = true;
+            sub.readyDeps.changed();
+            sub.readyCallback && sub.readyCallback();
+            console.warn('Subscription returned error for', sub.name);
+          } else {
+            console.info('Stop subscription for', sub.name);
+          }
         }
       }
     });
@@ -293,6 +302,7 @@ const Meteor = {
         readyDeps: new Tracker.Dependency(),
         readyCallback: callbacks.onReady,
         stopCallback: callbacks.onStop,
+        error: null,
         stop: function() {
           Data.ddp.unsub(this.subIdRemember);
           delete Data.subscriptions[this.id];
@@ -316,6 +326,12 @@ const Meteor = {
         let record = Data.subscriptions[id];
         record.readyDeps.depend();
         return record.ready;
+      },
+      error() {
+        if (!Data.subscriptions[id]) {
+          return null;
+        }
+        return Data.subscriptions[id].error;
       },
       subscriptionId: id,
     };
